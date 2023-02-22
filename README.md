@@ -1,2 +1,2 @@
-# jardin-solar
+# Jardin solar
 Huerto urbano automatizado.

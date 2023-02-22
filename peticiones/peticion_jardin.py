@@ -16,6 +16,7 @@ if __name__=='__main__':
         'metodo': args.metodo,
         'url': args.url,
         'datos': args.datos,
+        'estatus': 'esperando',
         'timestamp_peticion': datetime.datetime.now().isoformat() + "-06:00",
     }
     
