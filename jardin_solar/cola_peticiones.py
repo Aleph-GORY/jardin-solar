@@ -3,6 +3,7 @@ import argparse
 import os
 import datetime
 import time
+import json
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Genera una petición a la API jardin_solar')
@@ -16,6 +17,11 @@ if __name__=='__main__':
             busqueda = requests.get(
                 url = indice + '/_search?pretty',
                 auth = (os.environ['jardin_solar_user'], os.environ['jardin_solar_pass']),
+                json={
+                    'query': { 'match': {
+                        'estado': 'pendiente'
+                    }}
+                },
             )
             timestamp = datetime.datetime.now().isoformat() + '-06:00'
 
@@ -26,34 +32,40 @@ if __name__=='__main__':
                     url= 'http://localhost:5000' + petición['_source']['url'],
                     data= petición['_source']['datos']
                 )
-                print(petición_api.status_code, '- -', petición_api.json())
+                print(petición_api.status_code)
+                try:
+                    print(petición_api.json())
+                    hay_respuesta = True
+                except:
+                    print('No hubo respuesta.')
+                    hay_respuesta = False
 
                 print('Actualizando petición')
-                actualiza_estatus = requests.post(
+                actualiza_estado = requests.post(
                     url= indice + '/_update/' + petición['_id'],
                     auth = (os.environ['jardin_solar_user'], os.environ['jardin_solar_pass']),
                     json= {
-                        "script": f"ctx._source.estatus = '{petición_api.status_code}'"
+                        "script": f"ctx._source.estado = '{petición_api.status_code}'"
                     }
                 )
-                if actualiza_estatus.status_code in range(200,300):
+                print('Actualiza estado', actualiza_estado.status_code)
+                if hay_respuesta:
                     actualiza_respuesta = requests.post(
                         url= indice + '/_update/' + petición['_id'],
                         auth = (os.environ['jardin_solar_user'], os.environ['jardin_solar_pass']),
                         json= {
-                            "script": f"ctx._source.timestamp_respuesta = '{datetime.datetime.now().isoformat() + '-06:00'}'"
+                            "script": f"ctx._source.respuesta = {json.dumps(petición_api.json()).replace('{','[').replace('}',']')}"
                         }
                     )
-                    actualiza_timestamp_respuesta = requests.post(
-                        url= indice + '/_update/' + petición['_id'],
-                        auth = (os.environ['jardin_solar_user'], os.environ['jardin_solar_pass']),
-                        json= {
-                            "script": f"ctx._source.timestamp_respuesta = '{datetime.datetime.now().isoformat() + '-06:00'}'"
-                        }
-                    )
-                    print(actualiza_estatus.status_code, actualiza_respuesta, actualiza_timestamp_respuesta.status_code)
-                else:
-                    print('Error al actualizar la petición', petición['_id'])
+                    print('Actualiza respuesta', actualiza_respuesta.status_code)
+                actualiza_timestamp_respuesta = requests.post(
+                    url= indice + '/_update/' + petición['_id'],
+                    auth = (os.environ['jardin_solar_user'], os.environ['jardin_solar_pass']),
+                    json= {
+                        "script": f"ctx._source.timestamp_respuesta = '{datetime.datetime.now().isoformat() + '-06:00'}'"
+                    }
+                )
+                print('Actualiza timestamp de respuesta', actualiza_timestamp_respuesta.status_code)
                 print()
 
             time.sleep(10)
